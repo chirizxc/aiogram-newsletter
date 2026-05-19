@@ -2,12 +2,12 @@ import asyncio
 import pickle
 import re
 from datetime import datetime
-from typing import Union, Any, List, Tuple
+from typing import Any
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, User
-from aiogram.exceptions import TelegramRetryAfter, TelegramBadRequest
 
 from aiogram_newsletter.utils.texts import TextMessage
 
@@ -31,7 +31,7 @@ async def send_message(bot: Bot, chat_id: int, message_data: dict) -> bool:
     return True
 
 
-async def run_newsletter(bot: Bot, users_ids: List[int], message_data: dict) -> Tuple[int, int]:
+async def run_newsletter(bot: Bot, users_ids: list[int], message_data: dict) -> tuple[int, int]:
     successful, unsuccessful = 0, 0
 
     for user_id in users_ids:
@@ -61,14 +61,14 @@ async def run_newsletter_task(users_ids: list[int], user_data: dict, message_dat
     await bot.send_message(user.id, text=text)
 
 
-def validate_url(url: str) -> Union[str, None]:
-    url_pattern = re.compile(r'https?://\S+|www\.\S+')
+def validate_url(url: str) -> str | None:
+    url_pattern = re.compile(r"https?://\S+|www\.\S+")
     matches = re.findall(url_pattern, url)
 
     return matches[0] if matches else None
 
 
-def validate_datetime(datetime_string: str) -> Union[datetime, None]:
+def validate_datetime(datetime_string: str) -> datetime | None:
     try:
         datetime_obj = datetime.strptime(datetime_string, "%Y-%m-%d %H:%M")
     except ValueError:

@@ -5,9 +5,7 @@ from dataclasses import dataclass
 class TextMessage:
     text_messages = {
         "en": {
-            "outdated_text": (
-                "..."
-            ),
+            "outdated_text": ("..."),
             "newsletters": (
                 "Newsletter menu\n\n"
                 "<b>Add</b> - add/launch a scheduled newsletter\n\n"
@@ -19,12 +17,8 @@ class TextMessage:
                 "<b>Delete</b> - delete the scheduled message\n\n"
                 "Choose an action:"
             ),
-            "newsletter_delete": (
-                "Confirm the deletion of the scheduled message?"
-            ),
-            "send_message": (
-                "Please send or forward your message:"
-            ),
+            "newsletter_delete": ("Confirm the deletion of the scheduled message?"),
+            "send_message": ("Please send or forward your message:"),
             "send_buttons": (
                 "Please provide buttons for pinning the message.\n"
                 "If you do not wish to pin, press skip.\n\n"
@@ -85,9 +79,7 @@ class TextMessage:
             ),
         },
         "ru": {
-            "outdated_text": (
-                "..."
-            ),
+            "outdated_text": ("..."),
             "newsletters": (
                 "Меню рассылки\n\n"
                 "<b>Добавить</b> - добавить/запустить отложенную рассылку\n\n"
@@ -99,12 +91,8 @@ class TextMessage:
                 "<b>Удалить</b> - удалить отложенное сообщение\n\n"
                 "Выберите действие:"
             ),
-            "newsletter_delete": (
-                "Подтвердить удаление отложенного сообщения?"
-            ),
-            "send_message": (
-                "Пожалуйста, отправьте или перешлите ваше сообщение:"
-            ),
+            "newsletter_delete": ("Подтвердить удаление отложенного сообщения?"),
+            "send_message": ("Пожалуйста, отправьте или перешлите ваше сообщение:"),
             "send_buttons": (
                 "Пожалуйста, предоставьте кнопки для закрепления к сообщению.\n"
                 "Если вы не хотите закреплять, нажмите пропустить.\n\n"
@@ -163,11 +151,13 @@ class TextMessage:
                 "Рассылка успешно завершена для общего числа пользователей: {total}.\n\n"
                 "Успешные: <b>{successful}</b> • Неуспешные: <b>{unsuccessful}</b>"
             ),
-        }
+        },
     }
 
     def __init__(self, language_code: str) -> None:
-        self.language_code = language_code if language_code in self.text_messages else "en"
+        self.language_code = (
+            language_code if language_code in self.text_messages else "en"
+        )
 
     def get(self, code: str) -> str:
         return self.text_messages[self.language_code][code]

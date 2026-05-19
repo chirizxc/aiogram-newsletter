@@ -1,8 +1,7 @@
-from contextlib import suppress
+from collections.abc import Awaitable, Callable
 from datetime import datetime
-from typing import Dict, Any, Union, Optional, Callable, Awaitable, List
-
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from operator import itemgetter
+from typing import Any
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
@@ -12,6 +11,7 @@ from aiogram.types import (
     Message,
     User,
 )
+from jobify import Jobify
 
 from .utils.exceptions import (
     MESSAGE_DELETE_ERRORS,
@@ -22,29 +22,33 @@ from .utils.misc import DataStorage
 from .utils.states import ANState
 from .utils.texts import TextMessage
 
+job_metadata: dict[str, dict[str, Any]] = {}
+
 
 class ANManager:
 
     def __init__(
             self,
-            apscheduler: AsyncIOScheduler,
+            jobify: Jobify,
+            newsletter_task: Any,
             text_message: TextMessage,
             inline_keyboard: InlineKeyboard,
-            data: Dict[str, Any],
+            data: dict[str, Any],
     ) -> None:
         self.bot: Bot = data.get("bot")
         self.user: User = data.get("event_from_user")
         self.state: FSMContext = data.get("state")
 
-        self.apscheduler = apscheduler
+        self.jobify = jobify
+        self.newsletter_task = newsletter_task
         self.text_message = text_message
         self.inline_keyboard = inline_keyboard
         self.data_storage = DataStorage(self.state)
 
-        self._data: Dict[str, Any] = data
+        self._data: dict[str, Any] = data
 
     @property
-    def middleware_data(self) -> Dict[str, Any]:
+    def middleware_data(self) -> dict[str, Any]:
         return self._data
 
     async def return_callback(self) -> None:
@@ -52,27 +56,24 @@ class ANManager:
         await return_callback(**self.middleware_data)
 
     async def update_interfaces_language(self, language_code: str) -> None:
-        """
-        Update interfaces language.
-
-        :param language_code: The language code to update to.
-        :raise LanguageCodeNotSupported: If the provided language code is not supported.
-        """
         if (
                 language_code in self.text_message.text_messages and
                 language_code in self.inline_keyboard.text_buttons
         ):
             await self.state.update_data(language_code=language_code)
-            self.text_message.language_code = self.inline_keyboard.language_code = language_code
-            return None
+            self.text_message.language_code = language_code
+            self.inline_keyboard.language_code = language_code
+            return
 
-        raise ValueError(
-            f"Language code '{language_code}' not in text message or button text"
+        msg = (
+            f"Language code '{language_code}'"
+            " not in text message or button text"
         )
+        raise ValueError(msg)
 
     async def newsletter_menu(
             self,
-            users_ids: List[int],
+            users_ids: list[int],
             return_callback: Callable[..., Awaitable],
     ) -> Message:
         await self.data_storage.set_data(return_callback, "return_callback")
@@ -84,10 +85,10 @@ class ANManager:
         page, page_size = state_data.get("page", 1), 5
         items = sorted(
             [
-                (job.trigger.run_date.strftime("%Y-%m-%d %H:%M"), f"id:{job.id}")
-                for job in self.apscheduler.get_jobs()
+                (job.exec_at.strftime("%Y-%m-%d %H:%M"), f"id:{job.id}")
+                for job in self.jobify.get_active_jobs()
             ],
-            key=lambda x: x[0],
+            key=itemgetter(0),
         )
         page_items = items[(page - 1) * page_size: page * page_size]
         total_pages = (len(items) + page_size - 1) // page_size
@@ -100,8 +101,9 @@ class ANManager:
 
     async def open_newsletter_window(self) -> Message:
         state_data = await self.state.get_data()
-        job = self.apscheduler.get_job(job_id=state_data.get("job_id"), jobstore="default")
-        message_data = job.kwargs.get("message_data")
+        job_id = state_data.get("job_id")
+        metadata = job_metadata.get(job_id, {})
+        message_data = metadata.get("message_data")
         message_obj = Message(**message_data).as_(self.bot)
         await message_obj.send_copy(
             chat_id=self.user.id,
@@ -131,7 +133,7 @@ class ANManager:
         await self.state.set_state(ANState.send_message)
         return message
 
-    async def open_send_buttons_window(self, text: Optional[str] = None) -> Message:
+    async def open_send_buttons_window(self, text: str | None = None) -> Message:
         if not text:
             text = self.text_message.get("send_buttons")
         reply_markyp = self.inline_keyboard.send_buttons()
@@ -171,7 +173,7 @@ class ANManager:
         await self.state.set_state(ANState.confirmation_now)
         return message
 
-    async def open_send_datetime_window(self, text: str = None) -> Message:
+    async def open_send_datetime_window(self, text: str | None = None) -> Message:
         if not text:
             text = self.text_message.get("send_datetime")
         reply_markyp = self.inline_keyboard.back()
@@ -193,7 +195,7 @@ class ANManager:
     async def send_message(
             self,
             text: str,
-            reply_markup: Optional[InlineKeyboardMarkup] = None,
+            reply_markup: InlineKeyboardMarkup | None = None,
     ) -> Message:
         message = await self.bot.send_message(
             text=text,
@@ -206,13 +208,15 @@ class ANManager:
 
     @classmethod
     async def delete_message(cls, message: Message) -> None:
-        with suppress(TelegramBadRequest):
+        try:
             await message.delete()
+        except TelegramBadRequest:
+            pass
 
-    async def delete_previous_message(self) -> Union[Message, None]:
+    async def delete_previous_message(self) -> Message | None:
         state_data = await self.state.get_data()
         an_message_id = state_data.get("an_message_id")
-        if not an_message_id: return  # noqa:E701
+        if not an_message_id: return None  # noqa:E701
 
         try:
             await self.bot.delete_message(

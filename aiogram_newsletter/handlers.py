@@ -1,13 +1,11 @@
 import asyncio
 
-from apscheduler.triggers.date import DateTrigger
-
-from aiogram import Dispatcher, Router, F
+from aiogram import Dispatcher, F, Router
 from aiogram.enums import ChatType
 from aiogram.types import CallbackQuery, Message
 
-from .manager import ANManager
-from .utils.misc import validate_datetime, run_newsletter_task
+from .manager import ANManager, job_metadata
+from .utils.misc import run_newsletter_task, validate_datetime
 from .utils.states import ANState
 
 
@@ -58,7 +56,11 @@ class AiogramNewsletterHandlers:
             await an_manager.open_newsletter_window()
         elif call.data == "confirm":
             state_data = await an_manager.state.get_data()
-            an_manager.apscheduler.remove_job(state_data.get("job_id"))
+            job_id = state_data.get("job_id")
+            job = an_manager.jobify.find_job(job_id)
+            if job:
+                await job.cancel()
+            job_metadata.pop(job_id, None)
             await an_manager.open_newsletters_window()
 
         await call.answer()
@@ -112,13 +114,16 @@ class AiogramNewsletterHandlers:
     ) -> None:
         try:
             message_data = await an_manager.data_storage.get_data("message_data")
-            message_data["reply_markup"] = an_manager.inline_keyboard.build_buttons(message.text)
+            buttons = an_manager.inline_keyboard.build_buttons(
+                message.text,
+            )
+            message_data["reply_markup"] = buttons
             message_data = Message(**message_data).model_dump()
 
             await an_manager.data_storage.set_data(message_data, "message_data")
             await an_manager.open_message_preview_window()
 
-        except (Exception,):
+        except Exception:  # noqa: BLE001
             text = an_manager.text_message.get("send_buttons_error")
             await an_manager.open_send_buttons_window(text)
 
@@ -166,7 +171,11 @@ class AiogramNewsletterHandlers:
             user_data = an_manager.user.model_dump()
             message_data = await an_manager.data_storage.get_data("message_data")
 
-            _ = asyncio.create_task(run_newsletter_task(users_ids, user_data, message_data))
+            asyncio.create_task(
+                run_newsletter_task(
+                    users_ids, user_data, message_data,
+                ),
+            )
             await an_manager.open_newsletters_window()
 
         await call.answer()
@@ -215,15 +224,10 @@ class AiogramNewsletterHandlers:
             message_data = await an_manager.data_storage.get_data("message_data")
             datetime_obj = await an_manager.data_storage.get_data("datetime_obj")
 
-            an_manager.apscheduler.add_job(
-                func=run_newsletter_task,
-                trigger=DateTrigger(datetime_obj),
-                kwargs={
-                    "users_ids": users_ids,
-                    "user_data": user_data,
-                    "message_data": message_data,
-                },
-            )
+            job = await an_manager.newsletter_task.schedule(
+                users_ids, user_data, message_data,
+            ).at(datetime_obj)
+            job_metadata[job.id] = {"message_data": message_data}
 
             await an_manager.open_newsletters_window()
 
@@ -237,7 +241,7 @@ class AiogramNewsletterHandlers:
     ) -> None:
         await an_manager.delete_message(message)
 
-    def register(self, dp: Dispatcher):
+    def register(self, dp: Dispatcher) -> None:
         router = Router()
 
         router.callback_query.filter(F.message.chat.type == ChatType.PRIVATE)

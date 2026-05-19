@@ -1,0 +1,43 @@
+target-version = "py311"
+
+line-length = 90
+indent-width = 4
+
+include = [
+    "aiogram_newsletter/**.py",
+    "pyproject.toml",
+]
+
+[lint.isort]
+force-wrap-aliases = true
+combine-as-imports = true
+no-lines-before = ["local-folder"]
+
+[lint]
+preview = true
+
+select = ["ALL"]
+ignore = [
+    "ARG",    # Unused method argument
+    "D",      # Docstring's
+    ########
+    "CPY001", # Check copyright notices within Python files
+    "S311",   # Force `random` -> `secrets`
+    "ANN401", # Check `typing.Any`
+    "SIM105", # Force `try-except-pass` -> `contextlib.suppress`
+    "B008",   # Check for function calls in default function arguments
+    ########
+    "TC001",  # \
+    "TC002",  #  ==> `typing.TYPE_CHECKING` block's
+    "TC003",  # /
+    "TC006",  # Add quotes to type expression in `typing.cast()`
+    ########
+    "RUF012", # Checks for mutable default values in class attributes
+    "RUF001", # Ambiguous unicode characters (Cyrillic text is intentional)
+    "PLR0913", # Too many arguments in function definition
+    "PLR0917", # Too many positional arguments
+]
+
+[lint.flake8-tidy-imports.banned-api]
+"contextlib.suppress" = { msg = "Use `try-except-pass` instead" }
+"__future__.annotations" = { msg = "Directly quote annotations instead" }

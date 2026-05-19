@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Optional
 
-from aiogram.utils.keyboard import InlineKeyboardBuilder as Builder
-from aiogram.utils.keyboard import InlineKeyboardMarkup as Markup
-from aiogram.utils.keyboard import InlineKeyboardButton as Button
+from aiogram.utils.keyboard import (
+    InlineKeyboardBuilder as Builder,
+    InlineKeyboardButton as Button,
+    InlineKeyboardMarkup as Markup,
+)
 
 from .misc import validate_url
 
@@ -30,7 +31,7 @@ class InlineKeyboard:
             "later": "Позже",
             "now": "Сейчас",
             "confirm": "Подтвердить",
-        }
+        },
     }
 
     def __init__(self, language_code: str) -> None:
@@ -44,7 +45,7 @@ class InlineKeyboard:
 
     def back(self) -> Markup:
         return Markup(
-            inline_keyboard=[[self._get_button("back")]]
+            inline_keyboard=[[self._get_button("back")]],
         )
 
     def back_add(self) -> Markup:
@@ -52,7 +53,7 @@ class InlineKeyboard:
             inline_keyboard=[
                 [self._get_button("back"),
                  self._get_button("add")],
-            ]
+            ],
         )
 
     def back_next(self) -> Markup:
@@ -60,7 +61,7 @@ class InlineKeyboard:
             inline_keyboard=[
                 [self._get_button("back"),
                  self._get_button("next")],
-            ]
+            ],
         )
 
     def back_delete(self) -> Markup:
@@ -68,7 +69,7 @@ class InlineKeyboard:
             inline_keyboard=[
                 [self._get_button("back"),
                  self._get_button("delete")],
-            ]
+            ],
         )
 
     def back_confirm(self) -> Markup:
@@ -76,7 +77,7 @@ class InlineKeyboard:
             inline_keyboard=[
                 [self._get_button("back"),
                  self._get_button("confirm")],
-            ]
+            ],
         )
 
     def newsletters(self, items: list[tuple[str, str]], page: int, total_pages: int) -> Markup:
@@ -90,7 +91,7 @@ class InlineKeyboard:
 
     def send_message(self) -> Markup:
         return Markup(
-            inline_keyboard=[[self._get_button("back")]]
+            inline_keyboard=[[self._get_button("back")]],
         )
 
     def send_buttons(self) -> Markup:
@@ -98,7 +99,7 @@ class InlineKeyboard:
             inline_keyboard=[
                 [self._get_button("back"),
                  self._get_button("skip")],
-            ]
+            ],
         )
 
     def message_preview(self):
@@ -106,7 +107,7 @@ class InlineKeyboard:
             inline_keyboard=[
                 [self._get_button("back"),
                  self._get_button("next")],
-            ]
+            ],
         )
 
     def choose_options(self) -> Markup:
@@ -115,11 +116,11 @@ class InlineKeyboard:
                 [self._get_button("later"),
                  self._get_button("now")],
                 [self._get_button("back")],
-            ]
+            ],
         )
 
     @staticmethod
-    def build_buttons(buttons: str) -> Optional[Markup]:
+    def build_buttons(buttons: str) -> Markup | None:
         if not buttons:
             return None
 
@@ -130,10 +131,10 @@ class InlineKeyboard:
                 [
                     Button(
                         text=b.split("|")[0].strip(),
-                        url=validate_url(b.split("|")[1].strip())
+                        url=validate_url(b.split("|")[1].strip()),
                     ) for b in row
                 ] for row in rows
-            ]
+            ],
         )
 
 
@@ -151,8 +152,8 @@ class InlineKeyboardPaginator:
             total_pages: int = 1,
             row_width: int = 1,
             data_pattern: str = "page:{}",
-            before_reply_markup: Optional[Markup] = None,
-            after_reply_markup: Optional[Markup] = None,
+            before_reply_markup: Markup | None = None,
+            after_reply_markup: Markup | None = None,
     ) -> None:
         self.items = items
         self.current_page = current_page

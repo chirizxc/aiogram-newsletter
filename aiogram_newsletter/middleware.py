@@ -1,14 +1,15 @@
 import asyncio
-from typing import Callable, Dict, Any, Awaitable, Optional
-
-from aiogram.fsm.context import FSMContext
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from aiogram import BaseMiddleware
-from aiogram.types import TelegramObject, User, Chat
+from aiogram.fsm.context import FSMContext
+from aiogram.types import Chat, TelegramObject, User
+from jobify import Jobify
 
 from .manager import ANManager
 from .utils.keyboards import InlineKeyboard
+from .utils.misc import run_newsletter_task
 from .utils.texts import TextMessage
 
 
@@ -16,19 +17,20 @@ class AiogramNewsletterMiddleware(BaseMiddleware):
 
     def __init__(
             self,
-            apscheduler: AsyncIOScheduler,
-            text_message: Optional[TextMessage] = None,
-            inline_keyboard: Optional[InlineKeyboard] = None,
+            jobify: Jobify,
+            text_message: TextMessage | None = None,
+            inline_keyboard: InlineKeyboard | None = None,
     ) -> None:
-        self.apscheduler = apscheduler
+        self.jobify = jobify
+        self.newsletter_task = jobify.task(run_newsletter_task)
         self.text_message = text_message
         self.inline_keyboard = inline_keyboard
 
     async def __call__(
             self,
-            handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+            handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
             event: TelegramObject,
-            data: Dict[str, Any],
+            data: dict[str, Any],
     ) -> Any:
         chat: Chat = data.get("event_chat")
 
@@ -39,12 +41,13 @@ class AiogramNewsletterMiddleware(BaseMiddleware):
             state_data = await state.get_data()
             language_code = state_data.get("language_code")
 
-            language_code = language_code if language_code else user.language_code
+            language_code = language_code or user.language_code
             text_message = self.text_message or TextMessage(language_code)
             inline_keyboard = self.inline_keyboard or InlineKeyboard(language_code)
 
             an_manager = ANManager(
-                apscheduler=self.apscheduler,
+                jobify=self.jobify,
+                newsletter_task=self.newsletter_task,
                 text_message=text_message,
                 inline_keyboard=inline_keyboard,
                 data=data,
