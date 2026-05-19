@@ -1,7 +1,7 @@
 from collections.abc import Awaitable, Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from operator import itemgetter
-from typing import Any
+from typing import Any, cast
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
@@ -35,9 +35,9 @@ class ANManager:
             inline_keyboard: InlineKeyboard,
             data: dict[str, Any],
     ) -> None:
-        self.bot: Bot = data.get("bot")
-        self.user: User = data.get("event_from_user")
-        self.state: FSMContext = data.get("state")
+        self.bot: Bot = data["bot"]
+        self.user: User = data["event_from_user"]
+        self.state: FSMContext = data["state"]
 
         self.jobify = jobify
         self.newsletter_task = newsletter_task
@@ -94,16 +94,17 @@ class ANManager:
         total_pages = (len(items) + page_size - 1) // page_size
         text = self.text_message.get("newsletters")
         reply_markyp = self.inline_keyboard.newsletters(page_items, page, total_pages)
-        text = text.format(total=len(state_data.get("users_ids")))
+        users_ids = cast("list[int]", state_data.get("users_ids", []))
+        text = text.format(total=len(users_ids))
         message = await self.send_message(text, reply_markup=reply_markyp)
         await self.state.set_state(ANState.newsletters)
         return message
 
     async def open_newsletter_window(self) -> Message:
         state_data = await self.state.get_data()
-        job_id = state_data.get("job_id")
+        job_id = cast("str", state_data.get("job_id"))
         metadata = job_metadata.get(job_id, {})
-        message_data = metadata.get("message_data")
+        message_data = cast("dict[str, Any]", metadata.get("message_data"))
         message_obj = Message(**message_data).as_(self.bot)
         await message_obj.send_copy(
             chat_id=self.user.id,
@@ -177,7 +178,7 @@ class ANManager:
         if not text:
             text = self.text_message.get("send_datetime")
         reply_markyp = self.inline_keyboard.back()
-        datetime_now = datetime.now()
+        datetime_now = datetime.now(UTC)
         text = text.format(datetime_string=datetime_now.strftime("%Y-%m-%d %H:%M"))
 
         message = await self.send_message(text, reply_markup=reply_markyp)
@@ -223,15 +224,16 @@ class ANManager:
                 message_id=an_message_id,
                 chat_id=self.user.id,
             )
-        except TelegramBadRequest as ex:
-            if any(e in ex.message for e in MESSAGE_DELETE_ERRORS):
+        except TelegramBadRequest as exc:
+            if any(e in exc.message for e in MESSAGE_DELETE_ERRORS):
                 try:
                     text = self.text_message.get("outdated_text")
-                    return await self.bot.edit_message_text(
+                    edited_message = await self.bot.edit_message_text(
                         message_id=an_message_id,
                         chat_id=self.user.id,
                         text=text,
                     )
-                except TelegramBadRequest as ex:
-                    if not any(e in ex.message for e in MESSAGE_EDIT_ERRORS):
-                        raise ex
+                    return edited_message if isinstance(edited_message, Message) else None
+                except TelegramBadRequest as exc:
+                    if not any(e in exc.message for e in MESSAGE_EDIT_ERRORS):
+                        raise

@@ -1,9 +1,10 @@
 from dataclasses import dataclass
+from typing import ClassVar
 
 
 @dataclass
 class TextMessage:
-    text_messages = {
+    text_messages: ClassVar[dict[str, dict[str, str]]] = {
         "en": {
             "outdated_text": ("..."),
             "newsletters": (
@@ -39,7 +40,8 @@ class TextMessage:
                 "<code>Button text | link</code>\n"
                 "Example:\n"
                 "<code>Text | https://example.com</code>\n\n"
-                "If you encounter issues, check for typos, missing links, or incorrect formatting."
+                "If you encounter issues, check for typos, missing links, "
+                "or incorrect formatting."
             ),
             "message_preview": (
                 "The message above is an example of a scheduled message.\n\n"
@@ -71,10 +73,12 @@ class TextMessage:
                 "Are you sure you want to confirm and postpone the newsletter?"
             ),
             "newsletter_started": (
-                "The newsletter has been started. Please wait for the completion notification."
+                "The newsletter has been started. Please wait for "
+                "the completion notification."
             ),
             "newsletter_ended": (
-                "The newsletter has been successfully completed for a total of {total} users.\n\n"
+                "The newsletter has been successfully completed for "
+                "a total of {total} users.\n\n"
                 "Successful: <b>{successful}</b> • Unsuccessful: <b>{unsuccessful}</b>"
             ),
         },
@@ -103,7 +107,8 @@ class TextMessage:
                 "Чтобы добавить несколько кнопок в один ряд, разделите ссылки запятыми.\n"
                 "Пример:\n"
                 "<code>Первый текст | https://example.com, Второй текст | https://example.com</code>\n\n"
-                "Чтобы добавить несколько кнопок в колонку, напишите новые ссылки на новых строках.\n"
+                "Чтобы добавить несколько кнопок в колонку, напишите новые ссылки "
+                "на новых строках.\n"
                 "Пример:\n"
                 "<code>Первый текст | https://example.com\nВторой текст | https://example.com</code>"
             ),
@@ -113,7 +118,8 @@ class TextMessage:
                 "<code>Текст кнопки | ссылка</code>\n"
                 "Пример:\n"
                 "<code>Текст | https://example.com</code>\n\n"
-                "Если возникли проблемы, проверьте наличие опечаток, отсутствие ссылок или неверное форматирование."
+                "Если возникли проблемы, проверьте наличие опечаток, "
+                "отсутствие ссылок или неверное форматирование."
             ),
             "message_preview": (
                 "Сообщение выше - пример отложенного сообщения.\n\n"

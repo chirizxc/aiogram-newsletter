@@ -1,15 +1,14 @@
-import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiogram import BaseMiddleware
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Chat, TelegramObject, User
+from aiogram.types import TelegramObject, User
 from jobify import Jobify
 
 from .manager import ANManager
 from .utils.keyboards import InlineKeyboard
-from .utils.misc import run_newsletter_task
+from .utils.misc import run_newsletter_task, set_newsletter_bot
 from .utils.texts import TextMessage
 
 
@@ -32,16 +31,16 @@ class AiogramNewsletterMiddleware(BaseMiddleware):
             event: TelegramObject,
             data: dict[str, Any],
     ) -> Any:
-        chat: Chat = data.get("event_chat")
+        chat = data.get("event_chat")
 
         if chat and chat.type == "private":
-            user: User = data.get("event_from_user")
-            state: FSMContext = data.get("state")
+            user: User = data["event_from_user"]
+            state: FSMContext = data["state"]
 
             state_data = await state.get_data()
             language_code = state_data.get("language_code")
 
-            language_code = language_code or user.language_code
+            language_code = language_code or user.language_code or "en"
             text_message = self.text_message or TextMessage(language_code)
             inline_keyboard = self.inline_keyboard or InlineKeyboard(language_code)
 
@@ -54,7 +53,7 @@ class AiogramNewsletterMiddleware(BaseMiddleware):
             )
 
             data["an_manager"] = an_manager
-            loop = asyncio.get_running_loop()
-            loop.__setattr__("bot", event.bot)
+            if event.bot is not None:
+                set_newsletter_bot(event.bot)
 
         return await handler(event, data)

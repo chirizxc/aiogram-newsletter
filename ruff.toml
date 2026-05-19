@@ -36,6 +36,7 @@ ignore = [
     "RUF001", # Ambiguous unicode characters (Cyrillic text is intentional)
     "PLR0913", # Too many arguments in function definition
     "PLR0917", # Too many positional arguments
+    "PLR2004", # Magic value used in comparison
 ]
 
 [lint.flake8-tidy-imports.banned-api]

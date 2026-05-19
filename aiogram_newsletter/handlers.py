@@ -1,4 +1,5 @@
 import asyncio
+from typing import cast
 
 from aiogram import Dispatcher, F, Router
 from aiogram.enums import ChatType
@@ -17,17 +18,18 @@ class AiogramNewsletterHandlers:
             call: CallbackQuery,
             an_manager: ANManager,
     ) -> None:
-        if call.data == "back":
+        data = call.data or ""
+        if data == "back":
             await an_manager.return_callback()
             await an_manager.delete_previous_message()
-        elif call.data == "add":
+        elif data == "add":
             await an_manager.open_send_message_window()
-        elif call.data.startswith("page"):
-            page = int(call.data.split(":")[1])
+        elif data.startswith("page"):
+            page = int(data.split(":")[1])
             await an_manager.state.update_data(page=page)
             await an_manager.open_newsletters_window()
-        elif call.data.startswith("id"):
-            job_id = call.data.split(":")[1]
+        elif data.startswith("id"):
+            job_id = data.split(":")[1]
             await an_manager.state.update_data(job_id=job_id)
             await an_manager.open_newsletter_window()
 
@@ -39,9 +41,10 @@ class AiogramNewsletterHandlers:
             call: CallbackQuery,
             an_manager: ANManager,
     ) -> None:
-        if call.data == "back":
+        data = call.data or ""
+        if data == "back":
             await an_manager.open_newsletters_window()
-        elif call.data == "delete":
+        elif data == "delete":
             await an_manager.open_newsletter_delete_window()
 
         await call.answer()
@@ -52,11 +55,12 @@ class AiogramNewsletterHandlers:
             call: CallbackQuery,
             an_manager: ANManager,
     ) -> None:
-        if call.data == "back":
+        data = call.data or ""
+        if data == "back":
             await an_manager.open_newsletter_window()
-        elif call.data == "confirm":
+        elif data == "confirm":
             state_data = await an_manager.state.get_data()
-            job_id = state_data.get("job_id")
+            job_id = cast("str", state_data.get("job_id"))
             job = an_manager.jobify.find_job(job_id)
             if job:
                 await job.cancel()
@@ -71,7 +75,8 @@ class AiogramNewsletterHandlers:
             call: CallbackQuery,
             an_manager: ANManager,
     ) -> None:
-        if call.data == "back":
+        data = call.data or ""
+        if data == "back":
             await an_manager.open_newsletters_window()
 
         await call.answer()
@@ -94,9 +99,10 @@ class AiogramNewsletterHandlers:
             call: CallbackQuery,
             an_manager: ANManager,
     ) -> None:
-        if call.data == "back":
+        data = call.data or ""
+        if data == "back":
             await an_manager.open_send_message_window()
-        if call.data == "skip":
+        if data == "skip":
             message_data = await an_manager.data_storage.get_data("message_data")
             message_data["reply_markup"] = None
             message_data = Message(**message_data).model_dump()
@@ -115,7 +121,7 @@ class AiogramNewsletterHandlers:
         try:
             message_data = await an_manager.data_storage.get_data("message_data")
             buttons = an_manager.inline_keyboard.build_buttons(
-                message.text,
+                message.text or "",
             )
             message_data["reply_markup"] = buttons
             message_data = Message(**message_data).model_dump()
@@ -135,9 +141,10 @@ class AiogramNewsletterHandlers:
             call: CallbackQuery,
             an_manager: ANManager,
     ) -> None:
-        if call.data == "back":
+        data = call.data or ""
+        if data == "back":
             await an_manager.open_send_buttons_window()
-        elif call.data == "next":
+        elif data == "next":
             await an_manager.open_choose_options_window()
 
         await call.answer()
@@ -148,11 +155,12 @@ class AiogramNewsletterHandlers:
             call: CallbackQuery,
             an_manager: ANManager,
     ) -> None:
-        if call.data == "back":
+        data = call.data or ""
+        if data == "back":
             await an_manager.open_message_preview_window()
-        elif call.data == "later":
+        elif data == "later":
             await an_manager.open_send_datetime_window()
-        elif call.data == "now":
+        elif data == "now":
             await an_manager.open_confirmation_now_window()
 
         await call.answer()
@@ -163,19 +171,21 @@ class AiogramNewsletterHandlers:
             call: CallbackQuery,
             an_manager: ANManager,
     ) -> None:
-        if call.data == "back":
+        data = call.data or ""
+        if data == "back":
             await an_manager.open_choose_options_window()
-        elif call.data == "confirm":
+        elif data == "confirm":
             state_data = await an_manager.state.get_data()
-            users_ids = state_data.get("users_ids")
+            users_ids = cast("list[int]", state_data.get("users_ids", []))
             user_data = an_manager.user.model_dump()
             message_data = await an_manager.data_storage.get_data("message_data")
 
-            asyncio.create_task(
+            task = asyncio.create_task(
                 run_newsletter_task(
                     users_ids, user_data, message_data,
                 ),
             )
+            task.add_done_callback(lambda _: None)
             await an_manager.open_newsletters_window()
 
         await call.answer()
@@ -186,7 +196,8 @@ class AiogramNewsletterHandlers:
             call: CallbackQuery,
             an_manager: ANManager,
     ) -> None:
-        if call.data == "back":
+        data = call.data or ""
+        if data == "back":
             await an_manager.open_choose_options_window()
 
         await call.answer()
@@ -197,7 +208,7 @@ class AiogramNewsletterHandlers:
             message: Message,
             an_manager: ANManager,
     ) -> None:
-        if message.content_type == "text":
+        if message.text is not None:
             datetime_obj = validate_datetime(message.text)
 
             if datetime_obj is None:
@@ -215,11 +226,12 @@ class AiogramNewsletterHandlers:
             call: CallbackQuery,
             an_manager: ANManager,
     ) -> None:
-        if call.data == "back":
+        data = call.data or ""
+        if data == "back":
             await an_manager.open_send_datetime_window()
-        elif call.data == "confirm":
+        elif data == "confirm":
             state_data = await an_manager.state.get_data()
-            users_ids = state_data.get("users_ids")
+            users_ids = cast("list[int]", state_data.get("users_ids", []))
             user_data = an_manager.user.model_dump()
             message_data = await an_manager.data_storage.get_data("message_data")
             datetime_obj = await an_manager.data_storage.get_data("datetime_obj")

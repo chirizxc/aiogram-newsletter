@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import ClassVar
 
 from aiogram.utils.keyboard import (
     InlineKeyboardBuilder as Builder,
@@ -11,7 +12,7 @@ from .misc import validate_url
 
 @dataclass
 class InlineKeyboard:
-    text_buttons = {
+    text_buttons: ClassVar[dict[str, dict[str, str]]] = {
         "en": {
             "add": "Add",
             "delete": "Delete",
@@ -37,7 +38,7 @@ class InlineKeyboard:
     def __init__(self, language_code: str) -> None:
         self.language_code = language_code if language_code in self.text_buttons else "en"
 
-    def _get_button(self, code: str, url: str = None) -> Button:
+    def _get_button(self, code: str, url: str | None = None) -> Button:
         text = self.text_buttons[self.language_code][code]
         if not url:
             return Button(text=text, callback_data=code)
@@ -80,7 +81,12 @@ class InlineKeyboard:
             ],
         )
 
-    def newsletters(self, items: list[tuple[str, str]], page: int, total_pages: int) -> Markup:
+    def newsletters(
+        self,
+        items: list[tuple[str, str]],
+        page: int,
+        total_pages: int,
+    ) -> Markup:
         paginator = InlineKeyboardPaginator(
             items=items,
             current_page=page,
@@ -102,7 +108,7 @@ class InlineKeyboard:
             ],
         )
 
-    def message_preview(self):
+    def message_preview(self) -> Markup:
         return Markup(
             inline_keyboard=[
                 [self._get_button("back"),
@@ -176,33 +182,47 @@ class InlineKeyboardPaginator:
 
     def _navigation_builder(self) -> Builder:
         builder = Builder()
-        keyboard_dict = {}
+        keyboard_dict: dict[int, int | str] = {}
 
         if self.total_pages > 1:
             if self.total_pages <= 5:
-                for page in range(1, self.total_pages + 1):
-                    keyboard_dict[page] = page
+                pages = range(1, self.total_pages + 1)
+                keyboard_dict.update(zip(pages, pages, strict=True))
             else:
                 if self.current_page <= 3:
                     page_range = range(1, 4)
                     keyboard_dict[4] = self.next_page_label.format(4)
-                    keyboard_dict[self.total_pages] = self.last_page_label.format(self.total_pages)
+                    keyboard_dict[self.total_pages] = self.last_page_label.format(
+                        self.total_pages,
+                    )
                 elif self.current_page > self.total_pages - 3:
                     keyboard_dict[1] = self.first_page_label.format(1)
-                    keyboard_dict[self.total_pages - 3] = self.previous_page_label.format(self.total_pages - 3)
+                    keyboard_dict[self.total_pages - 3] = self.previous_page_label.format(
+                        self.total_pages - 3,
+                    )
                     page_range = range(self.total_pages - 2, self.total_pages + 1)
                 else:
                     keyboard_dict[1] = self.first_page_label.format(1)
-                    keyboard_dict[self.current_page - 1] = self.previous_page_label.format(self.current_page - 1)
-                    keyboard_dict[self.current_page + 1] = self.next_page_label.format(self.current_page + 1)
-                    keyboard_dict[self.total_pages] = self.last_page_label.format(self.total_pages)
+                    keyboard_dict[self.current_page - 1] = (
+                        self.previous_page_label.format(self.current_page - 1)
+                    )
+                    keyboard_dict[self.current_page + 1] = self.next_page_label.format(
+                        self.current_page + 1,
+                    )
+                    keyboard_dict[self.total_pages] = self.last_page_label.format(
+                        self.total_pages,
+                    )
                     page_range = [self.current_page]
-                for page in page_range:
-                    keyboard_dict[page] = page
-            keyboard_dict[self.current_page] = self.current_page_label.format(self.current_page)
+                keyboard_dict.update(zip(page_range, page_range, strict=True))
+            keyboard_dict[self.current_page] = self.current_page_label.format(
+                self.current_page,
+            )
 
             for key, val in sorted(keyboard_dict.items()):
-                builder.button(text=str(val), callback_data=str(self.data_pattern.format(key)))
+                builder.button(
+                    text=str(val),
+                    callback_data=str(self.data_pattern.format(key)),
+                )
             builder.adjust(5)
 
         return builder

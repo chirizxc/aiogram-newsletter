@@ -1,7 +1,7 @@
 import asyncio
-import pickle
+import pickle  # noqa: S403
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from aiogram import Bot
@@ -10,6 +10,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, User
 
 from aiogram_newsletter.utils.texts import TextMessage
+
+newsletter_bot: dict[str, Bot] = {}
+
+
+def set_newsletter_bot(bot: Bot) -> None:
+    newsletter_bot["bot"] = bot
 
 
 async def send_message(bot: Bot, chat_id: int, message_data: dict) -> bool:
@@ -25,13 +31,17 @@ async def send_message(bot: Bot, chat_id: int, message_data: dict) -> bool:
         await asyncio.sleep(e.retry_after)
         await send_message(bot, chat_id, message_data)
 
-    except (TelegramBadRequest, Exception):
+    except (TelegramBadRequest, Exception):  # noqa: BLE001
         return False
 
     return True
 
 
-async def run_newsletter(bot: Bot, users_ids: list[int], message_data: dict) -> tuple[int, int]:
+async def run_newsletter(
+    bot: Bot,
+    users_ids: list[int],
+    message_data: dict,
+) -> tuple[int, int]:
     successful, unsuccessful = 0, 0
 
     for user_id in users_ids:
@@ -45,19 +55,29 @@ async def run_newsletter(bot: Bot, users_ids: list[int], message_data: dict) -> 
     return successful, unsuccessful
 
 
-async def run_newsletter_task(users_ids: list[int], user_data: dict, message_data: dict) -> None:
-    loop = asyncio.get_running_loop()
-    bot: Bot = loop.__getattribute__("bot")
+async def run_newsletter_task(
+    users_ids: list[int],
+    user_data: dict,
+    message_data: dict,
+) -> None:
+    bot = newsletter_bot.get("bot")
+    if bot is None:
+        msg = "Bot is not configured"
+        raise RuntimeError(msg)
 
     user: User = User(**user_data)
-    text_message = TextMessage(user.language_code)
+    text_message = TextMessage(user.language_code or "en")
 
     text = text_message.get("newsletter_started")
     await bot.send_message(user.id, text=text)
 
     text = text_message.get("newsletter_ended")
     successful, unsuccessful = await run_newsletter(bot, users_ids, message_data)
-    text = text.format(total=len(users_ids), successful=successful, unsuccessful=unsuccessful)
+    text = text.format(
+        total=len(users_ids),
+        successful=successful,
+        unsuccessful=unsuccessful,
+    )
     await bot.send_message(user.id, text=text)
 
 
@@ -70,7 +90,9 @@ def validate_url(url: str) -> str | None:
 
 def validate_datetime(datetime_string: str) -> datetime | None:
     try:
-        datetime_obj = datetime.strptime(datetime_string, "%Y-%m-%d %H:%M")
+        datetime_obj = datetime.strptime(datetime_string, "%Y-%m-%d %H:%M").replace(
+            tzinfo=UTC,
+        )
     except ValueError:
         return None
 
@@ -87,12 +109,14 @@ class DataStorage:
 
     @classmethod
     def hext_to_data(cls, hext: str) -> Any:
-        return pickle.loads(bytes.fromhex(hext))
+        return pickle.loads(bytes.fromhex(hext))  # noqa: S301
 
     async def set_data(self, data: Any, key: str) -> None:
-        data = {key: self.data_to_hex(data)}
-        await self.state.update_data(**data)
+        await self.state.update_data({key: self.data_to_hex(data)})
 
     async def get_data(self, key: str) -> Any:
         state_data = await self.state.get_data()
-        return self.hext_to_data(state_data.get(key))
+        hext = state_data.get(key)
+        if not isinstance(hext, str):
+            raise KeyError(key)
+        return self.hext_to_data(hext)
