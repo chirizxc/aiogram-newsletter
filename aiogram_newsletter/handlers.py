@@ -97,7 +97,7 @@ class AiogramNewsletterHandlers:
             job: Job[None] | None = an_manager.jobify.find_job(job_id)
             if job:
                 await job.cancel()
-            an_manager.jobify.job_metadata.pop(job_id, None)
+            an_manager.job_metadata.pop(job_id, None)
             await an_manager.open_newsletters_window()
 
         await call.answer()
@@ -275,7 +275,7 @@ class AiogramNewsletterHandlers:
                 user_data,
                 message_data,
             ).at(obj)
-            an_manager.jobify.job_metadata[job.id] = {"message_data": message_data}
+            an_manager.job_metadata[job.id] = {"message_data": message_data}
 
             await an_manager.open_newsletters_window()
 
