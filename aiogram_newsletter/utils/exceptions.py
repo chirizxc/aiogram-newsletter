@@ -1,5 +1,4 @@
-class AiogramNewsletterError(Exception):
-    ...
+class AiogramNewsletterError(Exception): ...
 
 
 # List of error messages related to editing messages

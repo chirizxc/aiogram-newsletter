@@ -2,6 +2,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiogram import BaseMiddleware
+from aiogram.enums import ChatType
 from aiogram.fsm.context import FSMContext
 from aiogram.types import TelegramObject, User
 from jobify import Jobify
@@ -13,12 +14,11 @@ from .utils.texts import TextMessage
 
 
 class AiogramNewsletterMiddleware(BaseMiddleware):
-
     def __init__(
-            self,
-            jobify: Jobify,
-            text_message: TextMessage | None = None,
-            inline_keyboard: InlineKeyboard | None = None,
+        self,
+        jobify: Jobify,
+        text_message: TextMessage | None = None,
+        inline_keyboard: InlineKeyboard | None = None,
     ) -> None:
         self.jobify = jobify
         self.newsletter_task = jobify.task(run_newsletter_task)
@@ -26,14 +26,14 @@ class AiogramNewsletterMiddleware(BaseMiddleware):
         self.inline_keyboard = inline_keyboard
 
     async def __call__(
-            self,
-            handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
-            event: TelegramObject,
-            data: dict[str, Any],
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
     ) -> Any:
         chat = data.get("event_chat")
 
-        if chat and chat.type == "private":
+        if chat and chat.type == ChatType.PRIVATE:
             user: User = data["event_from_user"]
             state: FSMContext = data["state"]
 
@@ -53,7 +53,7 @@ class AiogramNewsletterMiddleware(BaseMiddleware):
             )
 
             data["an_manager"] = an_manager
-            if event.bot is not None:
-                set_newsletter_bot(event.bot)
+            assert event.bot is not None
+            set_newsletter_bot(event.bot)
 
         return await handler(event, data)

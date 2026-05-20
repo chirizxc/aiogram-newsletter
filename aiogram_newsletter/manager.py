@@ -1,7 +1,7 @@
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from operator import itemgetter
-from typing import Any, cast
+from typing import Any
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
@@ -13,6 +13,7 @@ from aiogram.types import (
 )
 from jobify import Jobify
 
+from .album import AlbumMessage, message_data_to_message
 from .utils.exceptions import (
     MESSAGE_DELETE_ERRORS,
     MESSAGE_EDIT_ERRORS,
@@ -22,18 +23,33 @@ from .utils.misc import DataStorage
 from .utils.states import ANState
 from .utils.texts import TextMessage
 
-job_metadata: dict[str, dict[str, Any]] = {}
+job_metadata = {}
+
+
+async def _send_copy(
+    message: Message,
+    bot: Bot,
+    chat_id: int,
+    reply_markup: InlineKeyboardMarkup | None = None,
+) -> None:
+    copy_result = message.send_copy(
+        chat_id=chat_id,
+        reply_markup=reply_markup,
+    )
+    if isinstance(message, AlbumMessage):
+        await copy_result
+    else:
+        await copy_result.as_(bot)
 
 
 class ANManager:
-
     def __init__(
-            self,
-            jobify: Jobify,
-            newsletter_task: Any,
-            text_message: TextMessage,
-            inline_keyboard: InlineKeyboard,
-            data: dict[str, Any],
+        self,
+        jobify: Jobify,
+        newsletter_task: Any,
+        text_message: TextMessage,
+        inline_keyboard: InlineKeyboard,
+        data: dict[str, Any],
     ) -> None:
         self.bot: Bot = data["bot"]
         self.user: User = data["event_from_user"]
@@ -57,24 +73,21 @@ class ANManager:
 
     async def update_interfaces_language(self, language_code: str) -> None:
         if (
-                language_code in self.text_message.text_messages and
-                language_code in self.inline_keyboard.text_buttons
+            language_code in self.text_message.text_messages
+            and language_code in self.inline_keyboard.text_buttons
         ):
             await self.state.update_data(language_code=language_code)
             self.text_message.language_code = language_code
             self.inline_keyboard.language_code = language_code
             return
 
-        msg = (
-            f"Language code '{language_code}'"
-            " not in text message or button text"
-        )
+        msg = f"Language code '{language_code}' not in text message or button text"
         raise ValueError(msg)
 
     async def newsletter_menu(
-            self,
-            users_ids: list[int],
-            return_callback: Callable[..., Awaitable],
+        self,
+        users_ids: list[int],
+        return_callback: Callable[..., Awaitable],
     ) -> Message:
         await self.data_storage.set_data(return_callback, "return_callback")
         await self.state.update_data(users_ids=users_ids, page=1)
@@ -90,11 +103,11 @@ class ANManager:
             ],
             key=itemgetter(0),
         )
-        page_items = items[(page - 1) * page_size: page * page_size]
+        page_items = items[(page - 1) * page_size : page * page_size]
         total_pages = (len(items) + page_size - 1) // page_size
         text = self.text_message.get("newsletters")
         reply_markyp = self.inline_keyboard.newsletters(page_items, page, total_pages)
-        users_ids = cast("list[int]", state_data.get("users_ids", []))
+        users_ids = state_data.get("users_ids", [])
         text = text.format(total=len(users_ids))
         message = await self.send_message(text, reply_markup=reply_markyp)
         await self.state.set_state(ANState.newsletters)
@@ -102,14 +115,17 @@ class ANManager:
 
     async def open_newsletter_window(self) -> Message:
         state_data = await self.state.get_data()
-        job_id = cast("str", state_data.get("job_id"))
+        job_id = state_data.get("job_id")
+        if not isinstance(job_id, str):
+            msg = "job_id"
+            raise KeyError(msg)
         metadata = job_metadata.get(job_id, {})
-        message_data = cast("dict[str, Any]", metadata.get("message_data"))
-        message_obj = Message(**message_data).as_(self.bot)
-        await message_obj.send_copy(
-            chat_id=self.user.id,
-            reply_markup=message_obj.reply_markup,
-        )
+        message_data = metadata.get("message_data")
+        if not isinstance(message_data, dict | list):
+            msg = "message_data"
+            raise KeyError(msg)
+        message_obj = message_data_to_message(message_data, self.bot)
+        await _send_copy(message_obj, self.bot, self.user.id, message_obj.reply_markup)
 
         text = self.text_message.get("newsletter")
         reply_markyp = self.inline_keyboard.back_delete()
@@ -145,11 +161,8 @@ class ANManager:
 
     async def open_message_preview_window(self) -> Message:
         message_data = await self.data_storage.get_data("message_data")
-        message_obj = Message(**message_data)
-        await message_obj.send_copy(
-            self.user.id,
-            reply_markup=message_obj.reply_markup,
-        ).as_(self.bot)
+        message_obj = message_data_to_message(message_data, self.bot)
+        await _send_copy(message_obj, self.bot, self.user.id, message_obj.reply_markup)
 
         text = self.text_message.get("message_preview")
         reply_markyp = self.inline_keyboard.back_next()
@@ -194,9 +207,9 @@ class ANManager:
         return message
 
     async def send_message(
-            self,
-            text: str,
-            reply_markup: InlineKeyboardMarkup | None = None,
+        self,
+        text: str,
+        reply_markup: InlineKeyboardMarkup | None = None,
     ) -> Message:
         message = await self.bot.send_message(
             text=text,
@@ -217,7 +230,8 @@ class ANManager:
     async def delete_previous_message(self) -> Message | None:
         state_data = await self.state.get_data()
         an_message_id = state_data.get("an_message_id")
-        if not an_message_id: return None  # noqa:E701
+        if not an_message_id:
+            return None
 
         try:
             await self.bot.delete_message(
@@ -237,3 +251,4 @@ class ANManager:
                 except TelegramBadRequest as exc:
                     if not any(e in exc.message for e in MESSAGE_EDIT_ERRORS):
                         raise
+        return None

@@ -6,7 +6,7 @@ from typing import ClassVar
 class TextMessage:
     text_messages: ClassVar[dict[str, dict[str, str]]] = {
         "en": {
-            "outdated_text": ("..."),
+            "outdated_text": "...",
             "newsletters": (
                 "Newsletter menu\n\n"
                 "<b>Add</b> - add/launch a scheduled newsletter\n\n"
@@ -18,10 +18,12 @@ class TextMessage:
                 "<b>Delete</b> - delete the scheduled message\n\n"
                 "Choose an action:"
             ),
-            "newsletter_delete": ("Confirm the deletion of the scheduled message?"),
-            "send_message": ("Please send or forward your message:"),
+            "newsletter_delete": "Confirm the deletion of the scheduled message?",
+            "send_message": "Please send or forward your message:",
             "send_buttons": (
                 "Please provide buttons for pinning the message.\n"
+                "Telegram doesn't support buttons on media groups/albums; "
+                "if this is an album, press skip.\n"
                 "If you do not wish to pin, press skip.\n\n"
                 "Send button text and link(s) in the format:\n"
                 "<code>Button text | link</code>\n"
@@ -83,7 +85,7 @@ class TextMessage:
             ),
         },
         "ru": {
-            "outdated_text": ("..."),
+            "outdated_text": "...",
             "newsletters": (
                 "Меню рассылки\n\n"
                 "<b>Добавить</b> - добавить/запустить отложенную рассылку\n\n"
@@ -95,10 +97,12 @@ class TextMessage:
                 "<b>Удалить</b> - удалить отложенное сообщение\n\n"
                 "Выберите действие:"
             ),
-            "newsletter_delete": ("Подтвердить удаление отложенного сообщения?"),
-            "send_message": ("Пожалуйста, отправьте или перешлите ваше сообщение:"),
+            "newsletter_delete": "Подтвердить удаление отложенного сообщения?",
+            "send_message": "Пожалуйста, отправьте или перешлите ваше сообщение:",
             "send_buttons": (
                 "Пожалуйста, предоставьте кнопки для закрепления к сообщению.\n"
+                "Telegram не поддерживает кнопки у медиагрупп/альбомов; "
+                "если это альбом, нажмите пропустить.\n"
                 "Если вы не хотите закреплять, нажмите пропустить.\n\n"
                 "Отправьте текст кнопок и ссылок в формате:\n"
                 "<code>Текст кнопки | ссылка</code>\n"

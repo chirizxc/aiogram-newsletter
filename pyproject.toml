@@ -12,8 +12,10 @@ version = "0.0.13"
 description = "Newsletter handler for aiogram bots."
 requires-python = ">=3.11"
 dependencies = [
-    "jobify >= 0.12.1",
-    "aiogram[fast] >= 3.21.0",
+    "jobify[fast] >= 0.12.1",
+    "aiogram[fast] >= 3.25.0",
+    "cachebox >= 5.2.3",
+    "adaptix >= 3.0.0b12",
 ]
 
 [dependency-groups]

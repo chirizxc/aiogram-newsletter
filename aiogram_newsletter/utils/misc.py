@@ -7,28 +7,33 @@ from typing import Any
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, User
+from aiogram.types import User
 
+from aiogram_newsletter.album import AlbumMessageData, message_data_to_message
 from aiogram_newsletter.utils.texts import TextMessage
 
-newsletter_bot: dict[str, Bot] = {}
+newsletter_bot: list[Bot] = []
 
 
 def set_newsletter_bot(bot: Bot) -> None:
-    newsletter_bot["bot"] = bot
+    newsletter_bot[:] = [bot]
 
 
-async def send_message(bot: Bot, chat_id: int, message_data: dict) -> bool:
-    message_obj = Message(**message_data).as_(bot)
+async def send_message(bot: Bot, chat_id: int, message_data: AlbumMessageData) -> bool:
+    message_obj = message_data_to_message(message_data, bot)
 
     try:
-        await message_obj.send_copy(
+        copy_result = message_obj.send_copy(
             chat_id=chat_id,
             reply_markup=message_obj.reply_markup,
         )
+        if hasattr(copy_result, "as_"):
+            await copy_result.as_(bot)
+        else:
+            await copy_result
 
-    except TelegramRetryAfter as e:
-        await asyncio.sleep(e.retry_after)
+    except TelegramRetryAfter as exc:
+        await asyncio.sleep(exc.retry_after)
         await send_message(bot, chat_id, message_data)
 
     except (TelegramBadRequest, Exception):  # noqa: BLE001
@@ -40,7 +45,7 @@ async def send_message(bot: Bot, chat_id: int, message_data: dict) -> bool:
 async def run_newsletter(
     bot: Bot,
     users_ids: list[int],
-    message_data: dict,
+    message_data: AlbumMessageData,
 ) -> tuple[int, int]:
     successful, unsuccessful = 0, 0
 
@@ -58,12 +63,10 @@ async def run_newsletter(
 async def run_newsletter_task(
     users_ids: list[int],
     user_data: dict,
-    message_data: dict,
+    message_data: AlbumMessageData,
 ) -> None:
-    bot = newsletter_bot.get("bot")
-    if bot is None:
-        msg = "Bot is not configured"
-        raise RuntimeError(msg)
+    bot = newsletter_bot[0] if newsletter_bot else None
+    assert bot is not None, "Bot is configured by AiogramNewsletterMiddleware"
 
     user: User = User(**user_data)
     text_message = TextMessage(user.language_code or "en")
@@ -90,13 +93,13 @@ def validate_url(url: str) -> str | None:
 
 def validate_datetime(datetime_string: str) -> datetime | None:
     try:
-        datetime_obj = datetime.strptime(datetime_string, "%Y-%m-%d %H:%M").replace(
+        obj = datetime.strptime(datetime_string, "%Y-%m-%d %H:%M").replace(
             tzinfo=UTC,
         )
     except ValueError:
         return None
 
-    return datetime_obj
+    return obj
 
 
 class DataStorage:
