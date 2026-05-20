@@ -8,7 +8,7 @@ from aiogram.types import CallbackQuery, Message
 from jobify import Job
 
 from .album import AlbumMiddleware, message_to_message_data, set_message_data_reply_markup
-from .manager import ANManager, job_metadata
+from .manager import ANManager
 from .utils.misc import run_newsletter_task, validate_datetime
 from .utils.states import ANState
 
@@ -97,7 +97,7 @@ class AiogramNewsletterHandlers:
             job: Job[None] | None = an_manager.jobify.find_job(job_id)
             if job:
                 await job.cancel()
-            job_metadata.pop(job_id, None)
+            an_manager.jobify.job_metadata.pop(job_id, None)
             await an_manager.open_newsletters_window()
 
         await call.answer()
@@ -275,7 +275,7 @@ class AiogramNewsletterHandlers:
                 user_data,
                 message_data,
             ).at(obj)
-            job_metadata[job.id] = {"message_data": message_data}
+            an_manager.jobify.job_metadata[job.id] = {"message_data": message_data}
 
             await an_manager.open_newsletters_window()
 

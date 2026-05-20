@@ -23,8 +23,6 @@ from .utils.misc import DataStorage
 from .utils.states import ANState
 from .utils.texts import TextMessage
 
-job_metadata = {}
-
 
 async def _send_copy(
     message: Message,
@@ -62,6 +60,9 @@ class ANManager:
         self.data_storage = DataStorage(self.state)
 
         self._data: dict[str, Any] = data
+
+        if not hasattr(self.jobify, 'job_metadata'):
+            self.jobify.job_metadata = {}
 
     @property
     def middleware_data(self) -> dict[str, Any]:
@@ -119,7 +120,7 @@ class ANManager:
         if not isinstance(job_id, str):
             msg = "job_id"
             raise KeyError(msg)
-        metadata = job_metadata.get(job_id, {})
+        metadata = self.jobify.job_metadata.get(job_id, {})
         message_data = metadata.get("message_data")
         if not isinstance(message_data, dict | list):
             msg = "message_data"
